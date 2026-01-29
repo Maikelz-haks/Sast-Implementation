@@ -168,31 +168,30 @@ jobs:
       
       # steps
       steps:
-        - name: Checkout del código
-          uses: actions/checkout@v4
+            - name: Checkout repo
+              uses: actions/checkout@v4
 
-        - name: Checkov IaC Security Scan
-          uses: bridgecrewio/checkov-action@master
-          with:
-            directory: k8s/ 
-            framework: all 
-            output_format: sarif
-            output_file_path: ${{ github.workspace }}/results.sarif 
-            soft_fail: true 
+            - name: Run Checkov action
+              id: checkov
+              uses: bridgecrewio/checkov-action@master
+              with:
+                directory: k8s/
+                framework: all
+                output_format: cli,sarif
+                output_file_path: console,results.sarif
 
-        - name: Upload Checkov SARIF to GitHub Security
-          if: always()
-          uses: github/codeql-action/upload-sarif@v4
-          with:
-            sarif_file: ${{ github.workspace }}/results.sarif
-            category: checkov-iac
+            - name: Upload SARIF file to GitHub Security
+              if: success() || failure()
+              uses: github/codeql-action/upload-sarif@v4
+              with:
+                sarif_file: results.sarif
 
-        - name: Upload Checkov Artifact
-          if: always()
-          uses: actions/upload-artifact@v4
-          with:
-            name: checkov-report
-            path: ${{ github.workspace }}/results.sarif
+            - name: Upload Checkov Artifact
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                name: checkov-report
+                path: ${{ github.workspace }}/results.sarif
 
 
   # Layer 5 - Container Image Scanning
