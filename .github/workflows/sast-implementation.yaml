@@ -3,10 +3,11 @@ name: "DevSecOps - SAST Implementation"
 on:
   push:
     branches:
+      - prod
       - dev
   pull_request:
     branches:
-      - main
+      - prod
       - dev
 
 jobs:
