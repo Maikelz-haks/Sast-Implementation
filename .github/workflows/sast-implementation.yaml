@@ -37,7 +37,6 @@ jobs:
 
         # Upload GitHub Storage Artifact
         - name: Upload Gitleaks Report
-          if: failure()
           uses: actions/upload-artifact@v4
           with:
             name: gitleaks-report
@@ -98,6 +97,12 @@ jobs:
           with:
             sarif_file: semgrep.sarif
             category: semgrep
+
+        - name: Upload Semgrep Report
+          uses: actions/upload-artifact@v4
+          with:
+            name: semgrep-report
+            path: semgrep.sarif
 
   # Layer 3 - Dependency Scanning (SCA - Software Composition Analysis)
   dependency-scanning:
@@ -162,36 +167,33 @@ jobs:
       needs: dependency-scanning
       # Least privilege - Zero Trust
       permissions:
-        contents: read
-        security-events: write  
-        pull-requests: write
+        contents: read 
+        security-events: write # 
+        actions: read
       
       # steps
       steps:
-            - name: Checkout repo
-              uses: actions/checkout@v4
+        # Checks-out your repository under $GITHUB_WORKSPACE, so follow-up steps can access it
+        - uses: actions/checkout@v3
 
-            - name: Run Checkov action
-              id: checkov
-              uses: bridgecrewio/checkov-action@master
-              with:
-                directory: k8s/
-                framework: all
-                output_format: cli,sarif
-                output_file_path: console,results.sarif
-
-            - name: Upload SARIF file to GitHub Security
-              if: success() || failure()
-              uses: github/codeql-action/upload-sarif@v4
-              with:
-                sarif_file: results.sarif
-
-            - name: Upload Checkov Artifact
-              if: always()
-              uses: actions/upload-artifact@v4
-              with:
-                name: checkov-report
-                path: ${{ github.workspace }}/results.sarif
+        - name: Checkov GitHub Action
+          uses: bridgecrewio/checkov-action@v12
+          with:
+            # This will add both a CLI output to the console and create a results.sarif file
+            output_format: cli,sarif
+            output_file_path: console,results.sarif
+          
+        - name: Upload SARIF file
+          uses: github/codeql-action/upload-sarif@v2
+          
+          # Results are generated only on a success or failure
+          # this is required since GitHub by default won't run the next step
+          # when the previous one has failed. Security checks that do not pass will 'fail'.
+          # An alternative is to add `continue-on-error: true` to the previous step
+          # Or 'soft_fail: true' to checkov.
+          if: success() || failure()
+          with:
+            sarif_file: results.sarif
 
 
   # Layer 5 - Container Image Scanning
