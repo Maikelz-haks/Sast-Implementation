@@ -1,0 +1,267 @@
+name: "DevSecOps - SAST Implementation"
+
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+    branches:
+      - main
+      - dev
+
+jobs:
+  # Layer 1 - Secrets Leak Detection 
+  secrets-leak-detection:
+      runs-on: ubuntu-latest
+
+      # Least privilege - Zero Trust
+      permissions:
+        contents: read
+        pull-requests: write
+
+      # Steps
+      steps:
+
+        # Clone repository
+        - uses: actions/checkout@v4
+          with:
+            fetch-depth: 0
+        
+        # Gitleaks Scan
+        - name: Gitleaks Scan
+          uses: gitleaks/gitleaks-action@v2
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            GITLEAKS_ENABLE_COMMENTS: true
+
+        # Upload GitHub Storage Artifact
+        - name: Upload Gitleaks Report
+          if: failure()
+          uses: actions/upload-artifact@v4
+          with:
+            name: gitleaks-report
+            path: results.sarif
+
+        # Upload to SIEM OPTION
+        #- name: Upload to SIEM
+          #if: failure()
+          #run: |
+            #curl -X POST https://example.com/api/upload \
+              #-H "Authorization: Bearer ${{ secrets.SIEM_TOKEN }}" \
+              #-F "file=@results.sarif"
+
+
+
+  # Layer 2 - SAST (Static Application Security Testing)
+  sast-code-analysis:
+      runs-on: ubuntu-latest
+      needs: secrets-leak-detection
+
+     # Least privilege - Zero Trust
+      permissions:
+        contents: read
+        actions: read
+        security-events: write
+        statuses: write
+        
+      # Steps
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v4
+
+        - name: Setup Node
+          uses: actions/setup-node@v4
+          with:
+            node-version: "20"
+            cache: "npm"
+
+        - name: Install deps
+          run: npm ci
+
+        - name: Install Semgrep
+          run: python -m pip install --upgrade pip semgrep
+
+        - name: Run Semgrep and generate SARIF
+          run: |
+            semgrep scan \
+              --config p/react \
+              --config p/javascript \
+              --config p/owasp-top-ten \
+              --sarif --output semgrep.sarif \
+              --exclude node_modules \
+              --exclude build \
+              --exclude dist
+
+        - name: Upload SARIF to GitHub
+          uses: github/codeql-action/upload-sarif@v4
+          with:
+            sarif_file: semgrep.sarif
+            category: semgrep
+
+  # Layer 3 - Dependency Scanning (SCA - Software Composition Analysis)
+  dependency-scanning:
+      runs-on: ubuntu-latest
+      needs: sast-code-analysis
+
+      # Least privilege - Zero Trust
+      permissions:
+        contents: read
+        security-events: write  
+        pull-requests: write
+      
+
+      # Steps
+      steps:
+        # Clone repository
+        - uses: actions/checkout@v4
+
+        # Setup Node.js with version
+        - name: Setup Node.js
+          uses: actions/setup-node@v4
+          with:
+            node-version: '20'
+            cache: 'npm'
+
+        # Snyk Security Scan
+        - name: Snyk Security Scan
+          uses: snyk/actions/node@master
+          continue-on-error: true  
+          env:
+            SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }} # requires account in snyk.io
+          with:
+            args: --severity-threshold=high --sarif-file-output=snyk.sarif
+
+        # Upload Snyk SARIF to GitHub Security
+        - name: Upload Snyk SARIF to GitHub Security
+          if: always()
+          uses: github/codeql-action/upload-sarif@v4
+          with:
+            sarif_file: snyk.sarif
+            category: snyk-dependencies
+
+        # Upload GitHub Storage Artifact
+        - name: Upload Snyk Report
+          if: always()
+          uses: actions/upload-artifact@v4
+          with:
+            name: snyk-report
+            path: snyk.sarif
+
+        # Double check: npm audit (manual check)
+        - name: npm audit (fallback)
+          if: always()
+          run: |
+            echo "Running npm audit as fallback..."
+            npm audit --audit-level=high
+          continue-on-error: true
+
+  # Layer 4 - Infrastructure as Code (IaC) Scanning
+  iac-scanning:
+      runs-on: ubuntu-latest
+      needs: dependency-scanning
+      # Least privilege - Zero Trust
+      permissions:
+        contents: read
+        security-events: write  
+        pull-requests: write
+      
+      # steps
+      steps:
+        # Clone repository
+        - uses: actions/checkout@v4
+
+        # Checkov IaC Scan
+        - name: Checkov IaC Security Scan
+          uses: bridgecrewio/checkov-action@master
+          with:
+            directory: k8s/  # Scan the repository of infraestructure
+            framework: all  # Scan all supported frameworks
+            output_format: sarif
+            output_file_path: checkov-results.sarif
+            soft_fail: true  # Don't fail build, just report
+
+            # Framwework all:
+            # - Dockerfile
+            # - docker-compose.yml
+            # - Kubernetes (*.yaml, *.yml)
+            # - Terraform (*.tf)
+            # - CloudFormation
+            # - ARM templates
+            # - Serverless framework
+            # - Helm charts
+
+        # Upload Checkov SARIF to GitHub Security
+        - name: Upload Checkov SARIF to GitHub Security
+          if: always()
+          uses: github/codeql-action/upload-sarif@v4
+          with:
+            sarif_file: checkov-results.sarif
+            category: checkov-iac
+
+        # Upload GitHub Storage Artifact
+        - name: Upload Checkov Report
+          if: always()
+          uses: actions/upload-artifact@v4
+          with:
+            name: checkov-iac-report
+            path: checkov-results.sarif
+
+  # Layer 5 - Container Image Scanning
+  # container-image-scanning:
+  #     runs-on: ubuntu-latest
+      
+  #     # Least privilege - Zero Trust
+  #     permissions:
+  #       contents: read
+  #       security-events: write  # Upload to GitHub Security
+  #       pull-requests: write
+      
+  #     # Steps
+  #     steps:
+  #       # Clone repository
+  #       - uses: actions/checkout@v4
+
+  #       # Build Docker Image (for scanning only)
+  #       - name: Build Docker Image
+  #         run: |
+  #           docker build -t security-scan-image:${{ github.sha }} .
+
+  #       # Trivy Image Scan
+  #       - name: Trivy Image Vulnerability Scan
+  #         uses: aquasecurity/trivy-action@master
+  #         with:
+  #           image-ref: 'security-scan-image:${{ github.sha }}'
+  #           format: 'sarif'
+  #           output: 'trivy-image.sarif'
+  #           severity: 'CRITICAL,HIGH'
+  #           exit-code: '1' # Fail build if critical vulnerabilities found
+  #           ignore-unfixed: true
+            
+  #       # Upload Trivy SARIF to GitHub Security
+  #       - name: Upload Trivy Image SARIF
+  #         if: always() 
+  #         uses: github/codeql-action/upload-sarif@v3
+  #         with:
+  #           sarif_file: trivy-image.sarif
+  #           category: trivy-image
+
+  #       # Upload GitHub Storage Artifact
+  #       - name: Upload Trivy Image Report
+  #         if: always()
+  #         uses: actions/upload-artifact@v4
+  #         with:
+  #           name: trivy-image-report
+  #           path: trivy-image.sarif
+
+
+# DEPLOY EXAMPLE
+  deployment-simulation:
+    runs-on: ubuntu-latest
+    needs: iac-scanning
+    steps:
+      - name: Aviso de Despliegue
+        run: |
+          echo "#########################################################"
+          echo "SEGURIDAD COMPLETADA EXITOSAMENTE"
+          echo "Iniciando despliegue en Google Cloud Platform (GCP)..."
+          echo "#########################################################"
