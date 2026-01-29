@@ -168,44 +168,32 @@ jobs:
       
       # steps
       steps:
-        # Clone repository
-        - uses: actions/checkout@v4
+        - name: Checkout del código
+          uses: actions/checkout@v4
 
-        # Checkov IaC Scan
         - name: Checkov IaC Security Scan
-          uses: bridgecrewio/checkov-action@master # Master siempre tiene las últimas firmas de vulnerabilidades
+          uses: bridgecrewio/checkov-action@master
           with:
             directory: k8s/ 
             framework: all 
             output_format: sarif
-            output_file_path: results.sarif 
-            soft_fail: true
+            output_file_path: ${{ github.workspace }}/results.sarif 
+            soft_fail: true 
 
-            # Framework all:
-            # - Dockerfile
-            # - docker-compose.yml
-            # - Kubernetes (*.yaml, *.yml)
-            # - Terraform (*.tf)
-            # - CloudFormation
-            # - ARM templates
-            # - Serverless framework
-            # - Helm charts
-
-        # Upload Checkov SARIF to GitHub Security
         - name: Upload Checkov SARIF to GitHub Security
           if: always()
-          uses: github/codeql-action/upload-sarif@v3
+          uses: github/codeql-action/upload-sarif@v4
           with:
-            sarif_file: results.sarif
+            sarif_file: ${{ github.workspace }}/results.sarif
             category: checkov-iac
 
-        # Upload GitHub Storage Artifact
         - name: Upload Checkov Artifact
           if: always()
           uses: actions/upload-artifact@v4
           with:
             name: checkov-report
-            path: results.sarif
+            path: ${{ github.workspace }}/results.sarif
+
 
   # Layer 5 - Container Image Scanning
   # container-image-scanning:
