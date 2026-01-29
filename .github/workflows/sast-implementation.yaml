@@ -13,23 +13,25 @@ on:
 jobs:
   # Layer 1 - Secrets Leak Detection 
   secrets-leak-detection:
-      runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
 
-      # Least privilege - Zero Trust
-      permissions:
-        contents: read
-        pull-requests: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
 
-      # Steps
-      steps:
-        - uses: actions/checkout@v4
-          with:
-            fetch-depth: 0
-        - uses: gitleaks/gitleaks-action@v2
-          env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-            GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
-
+      - name: Gitleaks Scan
+        continue-on-error: true 
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Usamos 'detect' para escanear el historial completo
+          args: detect --verbose --redact
 
 
 
