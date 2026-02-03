@@ -37,8 +37,8 @@ jobs:
             --verbose \
             --no-git \
             --report-format=sarif \
-            --report-path=results.sarif \
-            --exit-code=2
+            --report-path=results.sarif
+
 
 
 
