@@ -17,7 +17,7 @@ spec:
       - name: vulnerable-container
         image: nginx:latest
         securityContext:
-          privileged: true # Vulnerability: Running as privileged
-          runAsUser: 0     # Vulnerability: Running as root
+          privileged: true # Vulnerable
+          runAsUser: 0     # Vulnerable
         ports:
         - containerPort: 80
