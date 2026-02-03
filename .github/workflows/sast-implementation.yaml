@@ -17,31 +17,28 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: write
+      security-events: write
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          
-      - name: Gitleaks Scan - Full Repo
+        
+      - name: Install Gitleaks
         run: |
           wget -q https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz
           tar -xzf gitleaks_8.24.3_linux_x64.tar.gz
-          ./gitleaks detect \
-            --source . \
+          sudo mv gitleaks /usr/local/bin/
+          
+      - name: Scan for Secrets
+        run: |
+          gitleaks detect \
+            --source=. \
+            --config=.gitleaks.toml \
             --verbose \
             --no-git \
-            --exit-code=2 \
             --report-format=sarif \
-            --report-path=results.sarif
-          
-      - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: results.sarif
+            --report-path=results.sarif \
+            --exit-code=2
 
 
 
