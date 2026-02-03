@@ -13,31 +13,33 @@ on:
 jobs:
   # Layer 1 - Secrets Leak Detection 
 
-    secrets-leak-detection:
-      runs-on: ubuntu-latest
-      permissions:
-        contents: read
-        pull-requests: write
+  secrets-leak-detection:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
 
-      steps:
-        - name: Checkout
-          uses: actions/checkout@v4
-          with:
-            fetch-depth: 0 
-        - name: Gitleaks Scan (Last Commit Only - Block on Secrets)
-            run: |
-              wget -q https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz
-              tar -xzf gitleaks_8.24.3_linux_x64.tar.gz
-              ./gitleaks detect -v \
-                --log-opts="-1" \
-                --exit-code=2 \
-                --report-format=sarif \
-                --report-path=results.sarif
-        - name: Upload Results (if scan completed)
-          uses: github/codeql-action/upload-sarif@v3
-          if: always()
-          with:
-            sarif_file: results.sarif
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
+
+      - name: Gitleaks Scan (Last Commit Only - Block on Secrets)
+        run: |
+          wget -q https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz
+          tar -xzf gitleaks_8.24.3_linux_x64.tar.gz
+          ./gitleaks detect -v \
+            --log-opts="-1" \
+            --exit-code=2 \
+            --report-format=sarif \
+            --report-path=results.sarif
+
+      - name: Upload Results (if scan completed)
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: results.sarif
 
 
 
