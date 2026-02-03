@@ -1,7 +1,6 @@
-// WARNING: This file allows us to test Gitleaks integration
-// DO NOT USE REAL KEYS HERE
+// VULNERABLE TOKENS EXPOSE
 export const AWS_CONFIG = {
-    accessKeyId: "AKIAIOSFODNN7EXAMPLE", // Vulnerability: Hardcoded AWS Key
-    secretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", // Vulnerability: Hardcoded Secret
+    accessKeyId: "AKIAIOSFODNN7EXAMPLE", 
+    secretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
     region: "us-east-1"
 };
