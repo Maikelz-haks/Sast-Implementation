@@ -1,15 +1,36 @@
-title = "Gitleaks configuration"
+title = "Gitleaks - Path-based Detection"
 
 [extend]
 useDefault = true
 
+# Regla 1: Escanear CUALQUIER contenido en archivos .env*
 [[rules]]
-id = "generic-api-key"
-description = "Generic API Key"
-regex = '''(?i)(api[_-]?key|apikey|secret[_-]?key|access[_-]?key|auth[_-]?token|password)\s*[:=]\s*['"]?[a-zA-Z0-9_\-]{16,}['"]?'''
+id = "env-files-all"
+description = "Scan all .env files for any secrets"
+path = '''^\.env'''  # 👈 Cualquier archivo que empiece con .env
+regex = '''.*'''     # 👈 Cualquier contenido
+entropy = 3.0        # 👈 Detecta strings con entropía alta
+secretGroup = 0
 
+# Regla 2: Archivos de claves privadas (por nombre)
 [[rules]]
-id = "env-variable-secret"
-description = "Environment variable with secret"
-regex = '''(?i)^[A-Z_]+\s*=\s*['"]?.{10,}['"]?$'''
-path = '''\.(env|envDocker)$'''
+id = "private-key-files"
+description = "Private key files by name"
+path = '''(id_rsa|id_dsa|id_ecdsa|.*\.pem|.*\.key|private.*key)$'''
+regex = '''.*'''
+entropy = 3.0
+
+# Regla 3: Archivos de configuración sensibles
+[[rules]]
+id = "config-files"
+description = "Configuration files with secrets"
+path = '''(credentials|secrets|config)\.(json|yml|yaml|toml|ini)$'''
+regex = '''.*'''
+entropy = 3.5
+
+# Regla 4: Scripts con secretos hardcodeados
+[[rules]]
+id = "hardcoded-secrets-js"
+description = "JavaScript files with potential secrets"
+path = '''secrets\.(js|ts)$'''
+regex = '''(?i)(password|secret|api[_-]?key|token)\s*[:=]\s*['"][^'"]{8,}['"]'''
