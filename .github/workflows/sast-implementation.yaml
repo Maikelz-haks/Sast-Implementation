@@ -20,25 +20,12 @@ jobs:
       security-events: write
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        
-      - name: Install Gitleaks
-        run: |
-          wget -q https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz
-          tar -xzf gitleaks_8.24.3_linux_x64.tar.gz
-          sudo mv gitleaks /usr/local/bin/
-          
-      - name: Scan ALL Files (Aggressive Mode)
-        run: |
-          gitleaks detect \
-            --source=. \
-            --verbose \
-            --no-git \
-            --exit-code=2 \
-            --report-format=sarif \
-            --report-path=results.sarif \
-            --log-level=debug
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
 
