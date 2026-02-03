@@ -29,11 +29,10 @@ jobs:
           wget -q https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz
           tar -xzf gitleaks_8.24.3_linux_x64.tar.gz
           
-          ./gitleaks detect -v \
-            --no-git \
+          ./gitleaks detect -v --log-opts="--all" \
             --report-format=sarif \
-            --report-path=results.sarif
-        continue-on-error: true 
+            --report-path=results.sarif || echo "Secrets found, but continuing..."
+        continue-on-error: true
 
 
 
